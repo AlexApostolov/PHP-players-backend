@@ -40,8 +40,59 @@
 
     // Process form to update/create record.
     if (isset($_GET['id'])) {
-        // Pass id to edit a record.
-        renderForm(NULL, NULL, NULL, $_GET['id']);
+        // Check if our form been submitted.
+        // Rather than getting the data from the URL with GET, we'll capture the data from the form itself with POST.
+        if (isset($_POST['submit'])) {
+            // Grab the data from the form & save it to the database.
+            if (is_numeric($_POST['id'])) {
+                $id = $_POST['id'];
+                $firstname = htmlentities($_POST['firstname'], ENT_QUOTES);
+                $lastname = htmlentities($_POST['lastname'], ENT_QUOTES);
+
+                // Esure that the firstname & lastname fields are filled in.
+                if ($firstname == '' || $lastname == '') {
+                    $error = 'ERROR: Please fill in all required fields!';
+                    renderForm($firstname, $lastname, $error);
+                } else {
+                    // Take filled in form fields & save into database.
+                    if ($stmt = $mysqli->prepare("UPDATE players SET firstname = ?, lastname = ? WHERE id=?")) {
+                        $stmt->bind_param("ssi", $firstname, $lastname, $id);
+                        $stmt->execute();
+                        $stmt->close();
+                    } else {
+                        echo "ERROR: could not prepare SQL statement.";
+                    }
+                    // Redirect user
+                    header("Location: view.php");
+                }
+            } else {
+                echo "Error!";
+            }
+        } else {
+            // Otherwise display the form.
+            // Pass id to edit a record.
+            // We know already that id is set, but first check that it is of numeric type and has a value.
+            if (is_numeric($_GET['id']) && $_GET['id'] > 0) {
+                // Query database using prepared statements.
+                $id = $_GET['id'];
+                if ($stmt = $mysqli->prepare("SELECT * FROM players WHERE id=?")) {
+                    // Replace "?" placeholder with actual data, that is an integer.
+                    $stmt->bind_param("i", $id);
+                    $stmt->execute();
+                    // Bind the result with what rows we want.
+                    $stmt->bind_result($id, $firstname, $lastname);
+                    $stmt->fetch();
+                    // Display the form with the data fetched & errors to be NULL.
+                    renderForm($firstname, $lastname, NULL, $id);
+                    $stmt->close();
+                } else {
+                    echo "Error: could not prepare SQL statement";
+                }
+            } else {
+                // If id is set, but incorrectly, send user back to list page
+                header("Location: view.php");
+            }
+        }
     } else {
         // Create new record.
         if (isset($_POST['submit'])) {
